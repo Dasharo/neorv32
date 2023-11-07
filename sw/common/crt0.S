@@ -109,6 +109,120 @@ __crt0_reg_file_init:
   addi x31, x0, 0
 #endif
 
+#ifdef make_bootloader
+__crt0_litedram_init:
+  // Initialize memory. Flow and delays are taken from init_sequence() generated
+  // by LiteDRAM, they are slightly different than specification, but are tested
+  // and work.
+  lui  x10, 0xf8001
+  // 0(x10):    sdram_dfii_control
+  // 0xc(x10):  sdram_dfii_pi0_address
+  // 0x10(x10): sdram_dfii_pi0_baddress
+  // 0x4(x10):  sdram_dfii_pi0_command
+  // 0x8(x10):  sdram_dfii_pi0_command_issue
+  addi  x1, x0, 1
+  addi x15, x0, 0xf
+
+  // Switch to software mode
+  addi x12, x0, 0xe   // DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N
+  sw   x12, 0(x10)
+
+  // Assert reset after clearing address bits
+  sw    x0, 0xc(x10)
+  sw    x0, 0x10(x10)
+  addi x12, x0, 0xc   // DFII_CONTROL_CKE|DFII_CONTROL_ODT
+  sw   x12, 0(x10)
+
+  // Delay for 1ms = 50000 cycles @ 50 MHz, adapted from neorv32_cpu_delay_ms()
+  lui  x13, (50000 + 4095) / 4096   // blt rounds this up
+1:
+  blt  x13, x0, 2f    // 3 cycles (not taken)
+  blt  x13, x0, 2f    // 3 cycles (never taken)
+  addi x13, x13, -16  // 2 cycles
+  nop                 // 2 cycles
+  j    1b             // 6 cycles
+2:
+
+  // Release reset
+  sw    x0, 0xc(x10)
+  sw    x0, 0x10(x10)
+  addi x12, x0, 0xe   // DFII_CONTROL_CKE|DFII_CONTROL_ODT|DFII_CONTROL_RESET_N
+  sw   x12, 0(x10)
+
+  // Delay for 200us = 10000 cycles @ 50 MHz
+  lui  x13, (10000 + 4095) / 4096
+1:
+  blt  x13,  x0, 2f    // 3 cycles (not taken)
+  blt  x13,  x0, 2f    // 3 cycles (never taken)
+  addi x13, x13, -16  // 2 cycles
+  nop                 // 2 cycles
+  j    1b             // 6 cycles
+2:
+
+  // Load MR2, CWL = 5
+  addi x12, x0, 0x200
+  sw   x12, 0xc(x10)
+  addi x12, x0, 2
+  sw   x12, 0x10(x10)
+  sw   x15, 0x4(x10)
+  sw    x1, 0x8(x10)
+
+  // Load MR3
+  sw    x0, 0xc(x10)
+  addi x12, x0, 3
+  sw   x12, 0x10(x10)
+  sw   x15, 0x4(x10)
+  sw    x1, 0x8(x10)
+
+  // Load MR1
+  addi x12, x0, 0x6
+  sw   x12, 0xc(x10)
+  sw    x1, 0x10(x10)
+  sw   x15, 0x4(x10)
+  sw    x1, 0x8(x10)
+
+  // Load MR0, CL = 6, BL8
+  addi x12, x0, 0x320
+  sw   x12, 0xc(x10)
+  sw    x0, 0x10(x10)
+  sw   x15, 0x4(x10)
+  sw    x1, 0x8(x10)
+
+  // Delay for 4 us = 200 cycles @ 50 MHz
+  li  x13, 200        // blt rounds this up
+1:
+  blt  x13, x0, 2f    // 3 cycles (not taken)
+  blt  x13, x0, 2f    // 3 cycles (never taken)
+  addi x13, x13, -16  // 2 cycles
+  nop                 // 2 cycles
+  j    1b             // 6 cycles
+2:
+
+  // ZQ calibration
+  addi x12, x0, 0x400
+  sw   x12, 0xc(x10)
+  sw    x0, 0x10(x10)
+  addi x12, x0, 0x3
+  sw   x12, 0x4(x10)
+  sw    x1, 0x8(x10)
+
+  // Delay for 4 us = 200 cycles @ 50 MHz
+  li  x13, 200        // blt rounds this up
+1:
+  blt  x13, x0, 2f    // 3 cycles (not taken)
+  blt  x13, x0, 2f    // 3 cycles (never taken)
+  addi x13, x13, -16  // 2 cycles
+  nop                 // 2 cycles
+  j    1b             // 6 cycles
+2:
+
+  // Switch to hardware mode
+  sw    x1, 0(x10)
+
+  // Mark init as completed
+  lui  x10, 0xf8000
+  sw    x1, 0(x10)
+#endif
 
 // ************************************************************************************************
 // Copy initialized .data section from ROM to RAM (word-wise, section begins and ends on word boundary)
