@@ -435,6 +435,112 @@ int main(void) {
     else if (c == '?') {
       PRINT_TEXT("by Stephan Nolting\ngithub.com/stnolting/neorv32");
     }
+    else if (c == 'c') {
+      uint32_t *reg = (uint32_t *)0xf0000800;
+      PRINT_TEXT("TPM RAM:\n");
+      for (int i = 0; i < 50; i++) {
+        PRINT_XNUM(*reg++);
+        PRINT_TEXT("\n ");
+      }
+    }
+    else if (c == 'q') {
+      uint32_t *reg;
+      PRINT_TEXT("\nReading: ");
+      // Skip first 512 bytes, this is stack, we don't want to overwrite it
+      reg = (uint32_t *)0x80000200;
+      for (int i = 0; i < 50; i++) {
+        PRINT_TEXT("\n ");
+        PRINT_XNUM(*reg++);
+      }
+      PRINT_TEXT("\nWriting self-address\n");
+      reg = (uint32_t *)0x80000200;
+      for (int i = 0; i < 50; i++) {
+        uint32_t addr = (uint32_t) reg;
+        *reg++ = (uint32_t) addr;
+        PRINT_PUTC('.');
+      }
+      PRINT_TEXT("\nReading: ");
+      reg = (uint32_t *)0x80000200;
+      for (int i = 0; i < 50; i++) {
+        PRINT_TEXT("\n ");
+        PRINT_XNUM((uint32_t)reg);
+        PRINT_TEXT(" ");
+        PRINT_XNUM(*reg++);
+      }
+    }
+    else if (c == 'R') {
+      uint32_t adr = 0;
+      int invalid = 0;
+      PRINT_TEXT("Address (8 hex): ");
+      for (int i = 7; i >= 0; i--) {
+        char c = PRINT_GETC();
+        PRINT_PUTC(c); // echo
+        if (c >= '0' && c <= '9') {
+          adr |= (c - '0') << (i*4);
+        } else if (c >= 'a' && c <= 'f') {
+          adr |= (c - 'a' + 10) << (i*4);
+        } else if (c >= 'A' && c <= 'F') {
+          adr |= (c - 'A' + 10) << (i*4);
+        } else {
+          invalid = 1;
+          break;
+        }
+      }
+      if (invalid) {
+        PRINT_TEXT("\nInvalid address");
+      } else {
+        PRINT_TEXT("\n ");
+        PRINT_XNUM(adr);
+        PRINT_TEXT(" ");
+        PRINT_XNUM(*(uint32_t *)adr);
+      }
+    }
+    else if (c == 'W') {
+      uint32_t adr = 0, val = 0;
+      int invalid = 0;
+      PRINT_TEXT("Address (8 hex): ");
+      for (int i = 7; i >= 0; i--) {
+        char c = PRINT_GETC();
+        PRINT_PUTC(c); // echo
+        if (c >= '0' && c <= '9') {
+          adr |= (c - '0') << (i*4);
+        } else if (c >= 'a' && c <= 'f') {
+          adr |= (c - 'a' + 10) << (i*4);
+        } else if (c >= 'A' && c <= 'F') {
+          adr |= (c - 'A' + 10) << (i*4);
+        } else {
+          invalid = 1;
+          break;
+        }
+      }
+      if (invalid) {
+        PRINT_TEXT("\nInvalid address");
+        continue;
+      }
+
+      PRINT_TEXT("\nValue (8 hex): ");
+      for (int i = 7; i >= 0; i--) {
+        char c = PRINT_GETC();
+        PRINT_PUTC(c); // echo
+        if (c >= '0' && c <= '9') {
+          val |= (c - '0') << (i*4);
+        } else if (c >= 'a' && c <= 'f') {
+          val |= (c - 'a' + 10) << (i*4);
+        } else if (c >= 'A' && c <= 'F') {
+          val |= (c - 'A' + 10) << (i*4);
+        } else {
+          invalid = 1;
+          break;
+        }
+      }
+      if (invalid == 0) {
+        PRINT_TEXT("\nWriting ");
+        PRINT_XNUM(val);
+        PRINT_TEXT(" to address ");
+        PRINT_XNUM(adr);
+        *(uint32_t *)adr = val;
+      }
+    }
     else { // unknown command
       PRINT_TEXT("Invalid CMD");
     }
